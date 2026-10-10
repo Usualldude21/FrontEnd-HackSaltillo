@@ -3,24 +3,26 @@ dist/
 coverage/
 playwright-report/
 test-results/
+.vite/
+*.tsbuildinfo
 .env
 .env.*
 !.env.example
 package-lock.json
 npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
 *.local
+.DS_Store
+.idea/
+.vscode/
+tmp/
 
-# Runtime-only publication: keep local QA and handoff material out of Git.
-**/*.test.ts
-**/*.test.tsx
-src/test/
-playwright.config.ts
-vitest.config.ts
-eslint.config.js
-README.md
+# Local process and handoff material is not part of the product.
 frontend-mvp-handoff.md
+*_handoff.md
+PHASE_*.md
 .github/
 docs/
-e2e/
 scripts/*
 !scripts/start-jury-demo.mjs
