@@ -119,10 +119,18 @@ start(backendPython, [
 });
 
 const deadline = Date.now() + 20_000;
+let geminiConfigured = false;
 while (Date.now() < deadline) {
   try {
     const response = await fetch(`${backendUrl}/api/challenge/contract`);
-    if (response.ok) break;
+    if (response.ok) {
+      const remediationResponse = await fetch(`${backendUrl}/api/challenge/remediations`);
+      if (remediationResponse.ok) {
+        const remediation = await remediationResponse.json();
+        geminiConfigured = remediation.gemini_configured === true;
+      }
+      break;
+    }
   } catch {
     await new Promise((resolveWait) => setTimeout(resolveWait, 250));
   }
@@ -159,7 +167,7 @@ if (Date.now() >= deadline) {
     console.log(`Abrir: ${frontendUrl}`);
     console.log(`Backend: ${backendDirectory}`);
     console.log("La base inicia vacía. La Fase 4 solo actúa sobre infraestructura controlada.");
-    console.log(process.env.GEMINI_API_KEY
+    console.log(geminiConfigured
       ? "Gemini está configurado; las alertas críticas abiertas pueden activar un runbook permitido.\n"
       : "GEMINI_API_KEY no está configurada; la detección funcionará y la remediación se escalará sin ejecutar cambios.\n");
   }
