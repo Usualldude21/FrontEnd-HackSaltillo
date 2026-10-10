@@ -6,13 +6,32 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const frontendDirectory = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const backendDirectory = resolve(
-  process.env.SENTINEL_BACKEND_DIR ?? resolve(frontendDirectory, "../hacktoon-saltillo"),
-);
+const backendCandidates = process.env.SENTINEL_BACKEND_DIR === undefined
+  ? ["../zikit-2026", "../hacktoon-saltillo"].map((path) => resolve(frontendDirectory, path))
+  : [resolve(process.env.SENTINEL_BACKEND_DIR)];
+let backendDirectory = backendCandidates[0];
+for (const candidate of backendCandidates) {
+  try {
+    await access(resolve(candidate, "pyproject.toml"));
+    await access(resolve(candidate, ".venv/bin/python"));
+    backendDirectory = candidate;
+    break;
+  } catch {
+    // Continúa con el siguiente checkout compatible.
+  }
+}
 const backendPython = resolve(backendDirectory, ".venv/bin/python");
 const databasePath = resolve(tmpdir(), `sentinel-jurado-${Date.now()}.db`);
-const backendUrl = "http://127.0.0.1:8000";
-const frontendUrl = "http://127.0.0.1:5173";
+const backendPort = Number(process.env.SENTINEL_BACKEND_PORT ?? 8000);
+const frontendPort = Number(process.env.SENTINEL_FRONTEND_PORT ?? 5173);
+if (!Number.isSafeInteger(backendPort) || backendPort < 1 || backendPort > 65_535) {
+  throw new Error("SENTINEL_BACKEND_PORT debe ser un puerto válido.");
+}
+if (!Number.isSafeInteger(frontendPort) || frontendPort < 1 || frontendPort > 65_535) {
+  throw new Error("SENTINEL_FRONTEND_PORT debe ser un puerto válido.");
+}
+const backendUrl = `http://127.0.0.1:${backendPort}`;
+const frontendUrl = `http://127.0.0.1:${frontendPort}`;
 
 await access(backendPython).catch(() => {
   throw new Error(`No se encontró el entorno Python del backend en ${backendPython}`);
@@ -72,8 +91,8 @@ process.once("SIGINT", () => stop(0));
 process.once("SIGTERM", () => stop(0));
 
 try {
-  await assertPortAvailable(8000, "El backend");
-  await assertPortAvailable(5173, "El frontend");
+  await assertPortAvailable(backendPort, "El backend");
+  await assertPortAvailable(frontendPort, "El frontend");
 } catch (error) {
   console.error(`\n${error instanceof Error ? error.message : String(error)}\n`);
   process.exit(1);
@@ -86,7 +105,7 @@ start(backendPython, [
   "--host",
   "127.0.0.1",
   "--port",
-  "8000",
+  String(backendPort),
 ], {
   cwd: backendDirectory,
   env: {
@@ -95,6 +114,7 @@ start(backendPython, [
     MONITOR_ENABLED: "false",
     RESOURCE_MONITOR_ENABLED: "false",
     TRAFFIC_ENABLED: "false",
+    MCP_EXECUTION_URL: `${backendUrl}/mcp-execution/`,
   },
 });
 
@@ -112,7 +132,7 @@ if (Date.now() >= deadline) {
   console.error("El backend no quedó disponible en 20 segundos.");
   stop(1);
 } else {
-  start("pnpm", ["dev:api", "--host", "127.0.0.1", "--port", "5173", "--strictPort"], {
+  start("pnpm", ["dev:api", "--host", "127.0.0.1", "--port", String(frontendPort), "--strictPort"], {
     cwd: frontendDirectory,
     env: {
       ...process.env,
@@ -137,6 +157,10 @@ if (Date.now() >= deadline) {
   } else {
     console.log("\nSentinel listo para la demostración del jurado.");
     console.log(`Abrir: ${frontendUrl}`);
-    console.log("La base inicia vacía y las acciones no solicitan tokens en la interfaz.\n");
+    console.log(`Backend: ${backendDirectory}`);
+    console.log("La base inicia vacía. La Fase 4 solo actúa sobre infraestructura controlada.");
+    console.log(process.env.GEMINI_API_KEY
+      ? "Gemini está configurado; las alertas críticas abiertas pueden activar un runbook permitido.\n"
+      : "GEMINI_API_KEY no está configurada; la detección funcionará y la remediación se escalará sin ejecutar cambios.\n");
   }
 }

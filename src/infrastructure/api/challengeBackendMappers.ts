@@ -9,6 +9,8 @@ import {
   type ChallengeIncidentInvestigation,
   type ChallengeLiveReplayStatus,
   type ChallengeReplayResult,
+  type ChallengeRemediation,
+  type ChallengeRemediationOverview,
   type ChallengeResponsePlan,
   type ChallengeShowcase,
   type KaikuChallengeAlert,
@@ -23,6 +25,7 @@ import type {
   ChallengeCursorDto,
   ChallengeExplanationDto,
   ChallengeOperationsDto,
+  ChallengeRemediationOverviewDto,
   ChallengeIncidentInvestigationDto,
   ChallengeLiveReplayDto,
   ChallengeReplayResultDto,
@@ -36,6 +39,38 @@ function syntheticMoment(value: string): SyntheticReplayMoment {
 
 function operatorMoment(value: string): OperatorWallClockMoment {
   return { value, clock: "operator_wall_clock" };
+}
+
+function nullableOperatorMoment(value: string | null): OperatorWallClockMoment | null {
+  return value === null ? null : operatorMoment(value);
+}
+
+function mapRemediation(value: {
+  remediation_id?: string;
+  id?: string;
+  status: ChallengeRemediation["status"];
+  eligible_at: string;
+  runbook_id: string | null;
+  decision_provider: string | null;
+  decision_reason: string | null;
+  failure_code: string | null;
+  action_started_at: string | null;
+  action_completed_at: string | null;
+  verification_completed_at: string | null;
+}): ChallengeRemediation {
+  return {
+    id: value.remediation_id ?? value.id ?? "unknown",
+    status: value.status,
+    eligibleAt: operatorMoment(value.eligible_at),
+    runbookId: value.runbook_id,
+    decisionProvider: value.decision_provider,
+    decisionReason: value.decision_reason,
+    failureCode: value.failure_code,
+    actionStartedAt: nullableOperatorMoment(value.action_started_at),
+    actionCompletedAt: nullableOperatorMoment(value.action_completed_at),
+    verificationCompletedAt: nullableOperatorMoment(value.verification_completed_at),
+    environment: "controlled_infrastructure_demo",
+  };
 }
 
 function mapEvidence(value: ChallengeAlertDtoV1["evidence"]): ChallengeEvidence {
@@ -92,7 +127,7 @@ export function mapChallengeContract(dto: ChallengeContractDto): ChallengeContra
     limitations: {
       officialGroundTruthUsed: false,
       confidenceIsCalibratedProbability: false,
-      automaticRemediation: false,
+      automaticRemediation: dto.limitations.automatic_remediation,
       geminiRequired: false,
     },
   };
@@ -119,7 +154,8 @@ export function mapChallengeAlert(dto: ChallengeAlertDtoV1): KaikuChallengeAlert
     evidence: mapEvidence(dto.evidence),
     recommendedAction: dto.recommended_action,
     responsePlan: mapResponsePlan(dto.response_plan),
-    actionExecuted: false,
+    actionExecuted: dto.action_executed,
+    remediation: dto.remediation === null ? null : mapRemediation(dto.remediation),
     deliveredAt: operatorMoment(dto.delivered_at),
     acknowledgedAt: dto.acknowledged_at === null ? null : operatorMoment(dto.acknowledged_at),
     deliveryToAcknowledgementSeconds: dto.delivery_to_acknowledgement_seconds,
@@ -162,6 +198,13 @@ export function mapChallengeOperations(dto: ChallengeOperationsDto): ChallengeOp
       open: dto.alerts.open,
       acknowledged: dto.alerts.acknowledged,
     },
+    remediationCounts: {
+      total: dto.remediations.total,
+      recovered: dto.remediations.recovered,
+      reverted: dto.remediations.reverted,
+      escalated: dto.remediations.escalated,
+      active: dto.remediations.active,
+    },
     timing: {
       signalToDetection: {
         ...mapDistribution(dto.timing.signal_to_detection_seconds),
@@ -190,10 +233,26 @@ export function mapChallengeOperations(dto: ChallengeOperationsDto): ChallengeOp
       acknowledgementNotBeforeDelivery: dto.integrity.acknowledgement_not_before_delivery,
     },
     limitations: {
-      mitigationExecuted: false,
-      recoveryVerified: false,
+      mitigationExecuted: dto.limitations.mitigation_executed,
+      recoveryVerified: dto.limitations.recovery_verified,
       remoteInfrastructureObserved: false,
+      controlledInfrastructureOnly: true,
     },
+  };
+}
+
+export function mapChallengeRemediationOverview(
+  dto: ChallengeRemediationOverviewDto,
+): ChallengeRemediationOverview {
+  return {
+    version: dto.version,
+    environment: dto.environment,
+    enabled: dto.enabled,
+    waitSeconds: dto.wait_seconds,
+    verificationMinutes: dto.verification_minutes,
+    geminiConfigured: dto.gemini_configured,
+    mcpExecutionAvailable: dto.mcp_execution_available,
+    records: dto.records.map(mapRemediation),
   };
 }
 
@@ -292,8 +351,8 @@ export function mapChallengeExplanation(dto: ChallengeExplanationDto): Challenge
       status: dto.action.status,
       detail: dto.action.detail,
       responsePlan: mapResponsePlan(dto.action.response_plan),
-      executionAuthorized: false,
-      approvalRequired: true,
+      executionAuthorized: dto.action.execution_authorized,
+      approvalRequired: dto.action.approval_required,
     },
     operatorResponse: {
       status: dto.operator_response.status,
@@ -301,7 +360,7 @@ export function mapChallengeExplanation(dto: ChallengeExplanationDto): Challenge
         ? null
         : operatorMoment(dto.operator_response.acknowledged_at),
       deliveryToAcknowledgementSeconds: dto.operator_response.delivery_to_acknowledgement_seconds,
-      mitigationExecuted: false,
+      mitigationExecuted: dto.operator_response.mitigation_executed,
     },
     verification: {
       title: dto.verification.title,
@@ -382,7 +441,7 @@ export function mapChallengeAcknowledgement(
     state: dto.state,
     acknowledgedAt: operatorMoment(dto.acknowledged_at),
     deliveryToAcknowledgementSeconds: dto.challenge_trace.delivery_to_acknowledgement_seconds,
-    mitigationExecuted: false,
+    mitigationExecuted: dto.challenge_trace.mitigation_executed,
   };
 }
 

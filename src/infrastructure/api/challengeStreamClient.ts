@@ -7,6 +7,7 @@ import {
   challengeAlertSchema,
   challengeCursorSchema,
   challengeStreamHeartbeatSchema,
+  challengeRemediationStreamSchema,
 } from "./challengeBackendSchemas";
 import { mapChallengeAlert } from "./challengeBackendMappers";
 import { ApiError, incompatibleContractError, normalizeApiError } from "./errors";
@@ -51,7 +52,16 @@ function parseUpdate(eventName: string, payload: unknown): ChallengeStreamUpdate
       tenant: dto.tenant,
       acknowledgedAt: operatorMoment(dto.timestamp),
       deliveryToAcknowledgementSeconds: dto.delivery_to_acknowledgement_seconds,
-      mitigationExecuted: false,
+      mitigationExecuted: dto.action_executed,
+    };
+  }
+  if (eventName === "challenge_remediation_update") {
+    const dto = challengeRemediationStreamSchema.parse(payload);
+    return {
+      kind: "remediation",
+      cursor: dto.event_id,
+      incidentId: dto.incident_id,
+      status: dto.state,
     };
   }
   throw new ApiError({

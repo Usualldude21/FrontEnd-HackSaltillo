@@ -79,7 +79,9 @@ export function AlertsPage() {
       setFilters((current) => ({ ...current, state: "all" }));
       setFeedback(
         `Recepción registrada en ${formatDuration(result.deliveryToAcknowledgementSeconds)}. `
-        + "La mitigación continúa sin ejecutarse.",
+        + (result.mitigationExecuted
+          ? "La acción ya había comenzado; revisa su auditoría."
+          : "La remediación autónoma no ejecutará cambios para esta alerta."),
       );
     },
     onSettled: async () => {

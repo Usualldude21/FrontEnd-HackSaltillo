@@ -15,6 +15,7 @@ import type {
   ChallengeIncidentInvestigation,
   ChallengeLiveReplayStatus,
   ChallengeReplayResult,
+  ChallengeRemediationOverview,
   ChallengeShowcase,
   ChallengeStreamUpdate,
   KaikuChallengeAlert,
@@ -54,6 +55,7 @@ export interface KaikuChallengeDataSource {
   ): Promise<KaikuChallengeAlert[]>;
   getChallengeCursor(signal?: AbortSignal): Promise<ChallengeCursor>;
   getChallengeOperations(signal?: AbortSignal): Promise<ChallengeOperations>;
+  getChallengeRemediations(signal?: AbortSignal): Promise<ChallengeRemediationOverview>;
   getChallengeShowcase(signal?: AbortSignal): Promise<ChallengeShowcase>;
   getChallengeRehearsal(signal?: AbortSignal): Promise<VerifiedChallengeArtifact>;
   getChallengeDeployment(signal?: AbortSignal): Promise<VerifiedChallengeArtifact>;

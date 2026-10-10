@@ -104,6 +104,26 @@ export function ChallengeAlertDetail({
       ) : null}
       {explanation === undefined ? null : <Explanation explanation={explanation} />}
 
+      {alert.remediation === null ? null : (
+        <section className="challenge-ai-summary" aria-labelledby="remediation-title">
+          <div className="challenge-ai-summary-heading">
+            <ShieldAlert aria-hidden="true" size={18} />
+            <div>
+              <p className="eyebrow">Infraestructura controlada</p>
+              <h4 id="remediation-title">Remediación {alert.remediation.status.replaceAll("_", " ")}</h4>
+              <p>{alert.remediation.decisionReason ?? "El flujo autónomo dejó evidencia durable de cada transición."}</p>
+            </div>
+          </div>
+          <dl className="alert-detail-facts challenge-alert-facts">
+            <div><dt>Decisor</dt><dd>{alert.remediation.decisionProvider ?? "Pendiente"}</dd></div>
+            <div><dt>Runbook</dt><dd>{alert.remediation.runbookId ?? "Sin seleccionar"}</dd></div>
+            <div><dt>Acción MCP</dt><dd>{alert.actionExecuted ? "Ejecutada" : "No ejecutada"}</dd></div>
+            <div><dt>Fallo</dt><dd>{alert.remediation.failureCode ?? "Ninguno"}</dd></div>
+          </dl>
+          <a className="button button-secondary" download href="/api/challenge/remediations/audit.csv">Descargar auditoría CSV</a>
+        </section>
+      )}
+
       {alert.incidentId === null ? null : (
         <section aria-labelledby="gemini-summary-title" className="challenge-ai-summary">
           <div className="challenge-ai-summary-heading">
@@ -134,8 +154,8 @@ export function ChallengeAlertDetail({
           <p className="eyebrow">Respuesta del operador</p>
           <h4>{alert.state === "open" ? "Recepción pendiente" : "Recepción reconocida"}</h4>
           <p>
-            Reconocer registra que alguien recibió la alerta. No ejecuta el runbook,
-            no mitiga la falla y no verifica recuperación.
+            Reconocer registra respuesta humana. Si ocurre antes del plazo configurado,
+            cancela la ruta autónoma; nunca ejecuta por sí mismo un runbook.
           </p>
         </div>
         {alert.state === "open" ? (

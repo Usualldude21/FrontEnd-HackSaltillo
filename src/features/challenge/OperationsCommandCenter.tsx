@@ -11,11 +11,16 @@ import {
 import { useLayoutEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { Link } from "react-router-dom";
-import type { ChallengeEvidence, KaikuChallengeAlert } from "../../domain/kaikuChallenge";
+import type {
+  ChallengeEvidence,
+  ChallengeRemediationOverview,
+  KaikuChallengeAlert,
+} from "../../domain/kaikuChallenge";
 import { formatDuration, formatSyntheticTimestamp } from "../../shared/format/challenge";
 
 interface OperationsCommandCenterProps {
   alerts: KaikuChallengeAlert[];
+  remediations: ChallengeRemediationOverview;
   runId: string;
 }
 
@@ -50,12 +55,13 @@ const incidentPresentations: Record<string, { explanation: string; service: stri
   },
 };
 
-export function OperationsCommandCenter({ alerts, runId }: OperationsCommandCenterProps) {
+export function OperationsCommandCenter({ alerts, remediations, runId }: OperationsCommandCenterProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const currentAlerts = alerts.filter((alert) => alert.runId === runId);
   const primaryAlert = selectPrimaryAlert(currentAlerts);
   const orderedAlerts = selectRepresentativeAlerts(currentAlerts);
   const presentation = alertPresentation(primaryAlert);
+  const remediation = remediationPresentation(primaryAlert, remediations);
 
   useLayoutEffect(() => {
     const root = rootRef.current;
@@ -124,12 +130,12 @@ export function OperationsCommandCenter({ alerts, runId }: OperationsCommandCent
 
       <aside aria-labelledby="action-title" className="decision-rail">
         <div className="decision-rail-heading">
-          <span className="status status-neutral">Pendiente</span>
-          <span>Requiere revisión</span>
+          <span className={`status ${remediation.tone}`}>{remediation.label}</span>
+          <span>{remediation.detail}</span>
         </div>
-        <p className="section-label">Siguiente acción segura</p>
-        <h2 id="action-title">{primaryAlert.responsePlan.title}</h2>
-        <p className="decision-summary">{primaryAlert.recommendedAction}</p>
+        <p className="section-label">Remediación autónoma · entorno controlado</p>
+        <h2 id="action-title">{primaryAlert.remediation?.runbookId ?? primaryAlert.responsePlan.title}</h2>
+        <p className="decision-summary">{remediation.summary}</p>
 
         <div className="decision-checklist">
           <strong>Condiciones para verificar después de actuar</strong>
@@ -152,8 +158,11 @@ export function OperationsCommandCenter({ alerts, runId }: OperationsCommandCent
             <i><ArrowRight aria-hidden="true" size={16} /></i>
           </Link>
           <Link className="decision-secondary" to="/replay">Abrir laboratorio</Link>
+          <a className="decision-secondary" download href="/api/challenge/remediations/audit.csv">Descargar auditoría CSV</a>
         </div>
-        <p className="decision-boundary">Requiere aprobación antes de ejecutar cambios.</p>
+        <p className="decision-boundary">
+          Solo runbooks preautorizados y reversibles. Gemini elige; MCP ejecuta; Sentinel verifica {remediations.verificationMinutes} min.
+        </p>
       </aside>
 
       <section aria-labelledby="feed-title" className="priority-feed">
@@ -174,6 +183,63 @@ export function OperationsCommandCenter({ alerts, runId }: OperationsCommandCent
       </section>
     </div>
   );
+}
+
+function remediationPresentation(
+  alert: KaikuChallengeAlert,
+  overview: ChallengeRemediationOverview,
+): { label: string; detail: string; summary: string; tone: string } {
+  if (alert.kind !== "incident_risk" || alert.priority !== "critical") {
+    return {
+      label: "Observación",
+      detail: "Fuera de automatización",
+      summary: "La política autónoma solo procesa alertas críticas de incidente; esta alerta conserva su recomendación sin ejecutar cambios.",
+      tone: "status-neutral",
+    };
+  }
+  if (alert.state === "acknowledged" && alert.remediation === null) {
+    return {
+      label: "Atendida",
+      detail: "Automatización detenida",
+      summary: "El operador respondió antes de vencer el plazo y Sentinel no ejecutó ninguna mitigación.",
+      tone: "status-success",
+    };
+  }
+  const remediation = alert.remediation;
+  if (remediation === null) {
+    return {
+      label: overview.enabled ? "En espera" : "Desactivada",
+      detail: overview.geminiConfigured ? "Gemini disponible" : "Gemini sin configurar",
+      summary: overview.enabled
+        ? `Sentinel esperará ${formatDuration(overview.waitSeconds)} sin respuesta antes de solicitar una decisión segura.`
+        : "La remediación autónoma está desactivada; la detección permanece operativa.",
+      tone: "status-neutral",
+    };
+  }
+  if (remediation.status === "recovered") {
+    return {
+      label: "Recuperado",
+      detail: "Verificación completada",
+      summary: `${remediation.decisionProvider ?? "Gemini"} seleccionó el runbook permitido y MCP lo ejecutó. Sentinel verificó la recuperación en infraestructura controlada.`,
+      tone: "status-success",
+    };
+  }
+  if (remediation.status === "escalated") {
+    return {
+      label: "Escalado",
+      detail: remediation.failureCode ?? "Requiere operador",
+      summary: alert.actionExecuted
+        ? "La verificación falló; Sentinel revirtió la acción y escaló el caso al operador."
+        : "La ruta autónoma falló de forma segura y no ejecutó cambios; el detector continúa activo.",
+      tone: "status-warning",
+    };
+  }
+  return {
+    label: "En curso",
+    detail: remediation.status.replaceAll("_", " "),
+    summary: remediation.decisionReason ?? "Sentinel está ejecutando o verificando un runbook permitido mediante MCP.",
+    tone: "status-neutral",
+  };
 }
 
 function selectPrimaryAlert(alerts: KaikuChallengeAlert[]): KaikuChallengeAlert {

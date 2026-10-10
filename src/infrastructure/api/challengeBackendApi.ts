@@ -7,6 +7,7 @@ import {
   challengeCursorSchema,
   challengeExplanationSchema,
   challengeOperationsSchema,
+  challengeRemediationOverviewSchema,
   challengeIncidentInvestigationSchema,
   challengeIncidentInvestigationListSchema,
   challengeLiveReplaySchema,
@@ -20,6 +21,7 @@ import {
   type ChallengeCursorDto,
   type ChallengeExplanationDto,
   type ChallengeOperationsDto,
+  type ChallengeRemediationOverviewDto,
   type ChallengeIncidentInvestigationDto,
   type ChallengeIncidentInvestigationListDto,
   type ChallengeLiveReplayDto,
@@ -57,6 +59,7 @@ export interface ChallengeBackendApi {
   listAlerts(query?: ChallengeAlertRequest, signal?: AbortSignal): Promise<ChallengeAlertDtoV1[]>;
   getAlertCursor(signal?: AbortSignal): Promise<ChallengeCursorDto>;
   getOperations(signal?: AbortSignal): Promise<ChallengeOperationsDto>;
+  getRemediations(signal?: AbortSignal): Promise<ChallengeRemediationOverviewDto>;
   getShowcase(signal?: AbortSignal): Promise<ChallengeShowcaseDto>;
   getRehearsal(signal?: AbortSignal): Promise<VerifiedArtifactDto>;
   getDeployment(signal?: AbortSignal): Promise<VerifiedArtifactDto>;
@@ -155,6 +158,13 @@ export function createChallengeBackendApi(options: HttpClientOptions): Challenge
     },
     getOperations(signal) {
       return http.request("/api/challenge/operations", challengeOperationsSchema, withSignal(signal));
+    },
+    getRemediations(signal) {
+      return http.request(
+        "/api/challenge/remediations",
+        challengeRemediationOverviewSchema,
+        withSignal(signal),
+      );
     },
     getShowcase(signal) {
       return http.request("/api/challenge/showcase", challengeShowcaseSchema, withSignal(signal));

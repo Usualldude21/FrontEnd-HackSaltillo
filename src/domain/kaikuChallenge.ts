@@ -6,6 +6,40 @@ export type ChallengeAlertKind = "incident_risk" | "data_quality_alert";
 export type ChallengeDataQuality = "ok" | "partial" | "outage";
 export type ChallengeAlertPriority = "warning" | "critical";
 export type ChallengeAlertState = "open" | "acknowledged";
+export type ChallengeRemediationStatus =
+  | "deciding"
+  | "decision_ready"
+  | "executing"
+  | "verifying"
+  | "recovered"
+  | "reverted"
+  | "escalated"
+  | "cancelled";
+
+export interface ChallengeRemediation {
+  id: string;
+  status: ChallengeRemediationStatus;
+  eligibleAt: OperatorWallClockMoment;
+  runbookId: string | null;
+  decisionProvider: string | null;
+  decisionReason: string | null;
+  failureCode: string | null;
+  actionStartedAt: OperatorWallClockMoment | null;
+  actionCompletedAt: OperatorWallClockMoment | null;
+  verificationCompletedAt: OperatorWallClockMoment | null;
+  environment: "controlled_infrastructure_demo";
+}
+
+export interface ChallengeRemediationOverview {
+  version: "challenge-controlled-remediation-v1";
+  environment: "controlled_infrastructure_demo";
+  enabled: boolean;
+  waitSeconds: number;
+  verificationMinutes: number;
+  geminiConfigured: boolean;
+  mcpExecutionAvailable: boolean;
+  records: ChallengeRemediation[];
+}
 
 export interface SyntheticReplayMoment {
   value: string;
@@ -80,7 +114,8 @@ export interface KaikuChallengeAlert {
   evidence: ChallengeEvidence;
   recommendedAction: string;
   responsePlan: ChallengeResponsePlan;
-  actionExecuted: false;
+  actionExecuted: boolean;
+  remediation: ChallengeRemediation | null;
   deliveredAt: OperatorWallClockMoment;
   acknowledgedAt: OperatorWallClockMoment | null;
   deliveryToAcknowledgementSeconds: number | null;
@@ -108,7 +143,7 @@ export interface ChallengeContract {
   limitations: {
     officialGroundTruthUsed: false;
     confidenceIsCalibratedProbability: false;
-    automaticRemediation: false;
+    automaticRemediation: boolean;
     geminiRequired: false;
   };
 }
@@ -129,6 +164,13 @@ export interface ChallengeOperations {
     dataQuality: number;
     open: number;
     acknowledged: number;
+  };
+  remediationCounts: {
+    total: number;
+    recovered: number;
+    reverted: number;
+    escalated: number;
+    active: number;
   };
   timing: {
     signalToDetection: ChallengeDistribution & { clock: "synthetic_replay_time" };
@@ -152,9 +194,10 @@ export interface ChallengeOperations {
     acknowledgementNotBeforeDelivery: boolean;
   };
   limitations: {
-    mitigationExecuted: false;
-    recoveryVerified: false;
+    mitigationExecuted: boolean;
+    recoveryVerified: boolean;
     remoteInfrastructureObserved: false;
+    controlledInfrastructureOnly: true;
   };
 }
 
@@ -222,7 +265,7 @@ export interface ChallengeOperatorResponse {
   status: "pending" | "acknowledged";
   acknowledgedAt: OperatorWallClockMoment | null;
   deliveryToAcknowledgementSeconds: number | null;
-  mitigationExecuted: false;
+  mitigationExecuted: boolean;
 }
 
 export interface ChallengeExplanationStage {
@@ -250,8 +293,8 @@ export interface ChallengeAlertExplanation {
   };
   action: ChallengeExplanationStage & {
     responsePlan: ChallengeResponsePlan;
-    executionAuthorized: false;
-    approvalRequired: true;
+    executionAuthorized: boolean;
+    approvalRequired: boolean;
   };
   operatorResponse: ChallengeOperatorResponse;
   verification: ChallengeExplanationStage & {
@@ -320,7 +363,7 @@ export interface ChallengeAcknowledgement {
   state: "acknowledged";
   acknowledgedAt: OperatorWallClockMoment;
   deliveryToAcknowledgementSeconds: number;
-  mitigationExecuted: false;
+  mitigationExecuted: boolean;
 }
 
 export interface ChallengeCursor {
@@ -344,7 +387,13 @@ export type ChallengeStreamUpdate =
     tenant: KaikuTenantId;
     acknowledgedAt: OperatorWallClockMoment;
     deliveryToAcknowledgementSeconds: number;
-    mitigationExecuted: false;
+    mitigationExecuted: boolean;
+  }
+  | {
+    kind: "remediation";
+    cursor: number;
+    incidentId: string;
+    status: ChallengeRemediationStatus;
   };
 
 export interface VerifiedChallengeArtifact {

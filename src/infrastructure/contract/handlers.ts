@@ -12,6 +12,7 @@ import {
   challengeContractFixture,
   createChallengeExplanationFixture,
   challengeOperationsFixture,
+  challengeRemediationOverviewFixture,
   challengeShowcaseFixture,
 } from "./challengeFixtures";
 
@@ -55,6 +56,11 @@ export function createContractHandlers() {
     })),
     http.get("*/api/challenge/contract", () => HttpResponse.json(challengeContractFixture)),
     http.get("*/api/challenge/operations", () => HttpResponse.json(challengeOperations)),
+    http.get("*/api/challenge/remediations", () => HttpResponse.json(challengeRemediationOverviewFixture)),
+    http.get("*/api/challenge/remediations/audit.csv", () => new HttpResponse(
+      "remediation_id,incident_id,status,environment\n",
+      { headers: { "Content-Type": "text/csv" } },
+    )),
     http.get("*/api/challenge/showcase", () => HttpResponse.json(challengeShowcaseFixture)),
     http.get("*/api/challenge/alerts/cursor", () => HttpResponse.json({
       earliest_id: challengeStreamUpdates.length === 0 ? 0 : 301,

@@ -8,6 +8,7 @@ import {
   mapChallengeCursor,
   mapChallengeExplanation,
   mapChallengeOperations,
+  mapChallengeRemediationOverview,
   mapChallengeIncidentInvestigation,
   mapChallengeLiveReplay,
   mapChallengeReplayResult,
@@ -60,6 +61,9 @@ export function createKaikuChallengeDataSource(
     },
     async getChallengeOperations(signal) {
       return mapChallengeOperations(await api.getOperations(signal));
+    },
+    async getChallengeRemediations(signal) {
+      return mapChallengeRemediationOverview(await api.getRemediations(signal));
     },
     async getChallengeShowcase(signal) {
       return mapChallengeShowcase(await api.getShowcase(signal));

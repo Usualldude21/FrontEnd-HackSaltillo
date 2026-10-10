@@ -45,7 +45,7 @@ export const challengeContractSchema = z.object({
   limitations: z.object({
     official_ground_truth_used: z.literal(false),
     confidence_is_calibrated_probability: z.literal(false),
-    automatic_remediation: z.literal(false),
+    automatic_remediation: z.boolean(),
     gemini_required: z.literal(false),
   }),
 });
@@ -104,7 +104,20 @@ export const challengeAlertSchema = z.object({
   recommended_action: z.string().min(1),
   response_plan: challengeResponsePlanSchema,
   runbook_id: z.string().min(1),
-  action_executed: z.literal(false),
+  action_executed: z.boolean(),
+  remediation: z.object({
+    id: z.string().min(1),
+    status: z.enum(["deciding", "decision_ready", "executing", "verifying", "recovered", "reverted", "escalated", "cancelled"]),
+    eligible_at: timestampSchema,
+    runbook_id: z.string().nullable(),
+    decision_provider: z.string().nullable(),
+    decision_reason: z.string().nullable(),
+    failure_code: z.string().nullable(),
+    action_started_at: nullableTimestampSchema,
+    action_completed_at: nullableTimestampSchema,
+    verification_completed_at: nullableTimestampSchema,
+    audit: jsonObjectSchema,
+  }).nullable(),
   delivered_at: timestampSchema,
   priority: z.enum(["warning", "critical"]),
   state: z.enum(["open", "acknowledged"]),
@@ -157,7 +170,7 @@ export const challengeAcknowledgedStreamSchema = z.object({
   timestamp: timestampSchema,
   alert_type: z.literal("operator_acknowledgement"),
   state: z.literal("acknowledged"),
-  action_executed: z.literal(false),
+  action_executed: z.boolean(),
   delivery_to_acknowledgement_seconds: z.number().nonnegative(),
   clock_domain: z.literal("operator_wall_clock"),
   stream_event: z.literal("challenge_alert_acknowledged"),
@@ -169,6 +182,15 @@ export const challengeAcknowledgedStreamSchema = z.object({
       path: ["id"],
     });
   }
+});
+
+export const challengeRemediationStreamSchema = z.object({
+  id: z.number().int().positive(),
+  event_id: z.number().int().positive(),
+  incident_id: z.string().min(1),
+  alert_type: z.literal("autonomous_remediation"),
+  state: z.enum(["deciding", "decision_ready", "executing", "verifying", "recovered", "reverted", "escalated", "cancelled"]),
+  stream_event: z.literal("challenge_remediation_update"),
 });
 
 const distributionSchema = z.object({
@@ -187,6 +209,13 @@ export const challengeOperationsSchema = z.object({
     data_quality: z.number().int().nonnegative(),
     open: z.number().int().nonnegative(),
     acknowledged: z.number().int().nonnegative(),
+  }),
+  remediations: z.object({
+    total: z.number().int().nonnegative(),
+    recovered: z.number().int().nonnegative(),
+    reverted: z.number().int().nonnegative(),
+    escalated: z.number().int().nonnegative(),
+    active: z.number().int().nonnegative(),
   }),
   timing: z.object({
     signal_to_detection_seconds: distributionSchema.extend({
@@ -215,10 +244,39 @@ export const challengeOperationsSchema = z.object({
     acknowledgement_not_before_delivery: z.boolean(),
   }),
   limitations: z.object({
-    mitigation_executed: z.literal(false),
-    recovery_verified: z.literal(false),
+    mitigation_executed: z.boolean(),
+    recovery_verified: z.boolean(),
     remote_infrastructure_observed: z.literal(false),
+    controlled_infrastructure_only: z.literal(true),
   }),
+});
+
+export const challengeRemediationSchema = z.object({
+  remediation_id: z.string().min(1),
+  incident_id: z.string().min(1),
+  alert_id: z.number().int().positive(),
+  status: z.enum(["deciding", "decision_ready", "executing", "verifying", "recovered", "reverted", "escalated", "cancelled"]),
+  eligible_at: timestampSchema,
+  decision_provider: z.string().nullable(),
+  decision_reason: z.string().nullable(),
+  runbook_id: z.string().nullable(),
+  action_started_at: nullableTimestampSchema,
+  action_completed_at: nullableTimestampSchema,
+  verification_completed_at: nullableTimestampSchema,
+  failure_code: z.string().nullable(),
+  environment: z.literal("controlled_infrastructure_demo"),
+  audit: jsonObjectSchema,
+});
+
+export const challengeRemediationOverviewSchema = z.object({
+  version: z.literal("challenge-controlled-remediation-v1"),
+  environment: z.literal("controlled_infrastructure_demo"),
+  enabled: z.boolean(),
+  wait_seconds: z.number().nonnegative(),
+  verification_minutes: z.number().int().positive(),
+  gemini_configured: z.boolean(),
+  mcp_execution_available: z.boolean(),
+  records: z.array(challengeRemediationSchema),
 });
 
 export const challengeReplayResultSchema = z.object({
@@ -319,7 +377,7 @@ const operatorResponseSchema = z.object({
   acknowledged_at: nullableTimestampSchema,
   delivery_to_acknowledgement_seconds: z.number().nonnegative().nullable(),
   clock_domain: z.literal("operator_wall_clock"),
-  mitigation_executed: z.literal(false),
+  mitigation_executed: z.boolean(),
 });
 
 export const challengeExplanationSchema = z.object({
@@ -346,10 +404,11 @@ export const challengeExplanationSchema = z.object({
   action: explanationStageSchema.extend({
     runbook: z.string().min(1),
     response_plan: challengeResponsePlanSchema,
-    execution_authorized: z.literal(false),
-    approval_required: z.literal(true),
-    started_at: z.null(),
-    completed_at: z.null(),
+    execution_authorized: z.boolean(),
+    approval_required: z.boolean(),
+    started_at: nullableTimestampSchema,
+    completed_at: nullableTimestampSchema,
+    environment: z.literal("controlled_infrastructure_demo").optional(),
   }),
   operator_response: operatorResponseSchema,
   verification: explanationStageSchema.extend({
@@ -438,7 +497,7 @@ const challengeAcknowledgementTraceSchema = z.object({
   acknowledged_at: timestampSchema,
   delivery_to_acknowledgement_seconds: z.number().nonnegative(),
   operator_action: z.literal("alert_acknowledged"),
-  mitigation_executed: z.literal(false),
+  mitigation_executed: z.boolean(),
 });
 
 export const challengeAcknowledgementSchema = z.object({
@@ -459,6 +518,7 @@ export type ChallengeAlertDtoV1 = z.infer<typeof challengeAlertSchema>;
 export type ChallengeCursorDto = z.infer<typeof challengeCursorSchema>;
 export type ChallengeAcknowledgedStreamDto = z.infer<typeof challengeAcknowledgedStreamSchema>;
 export type ChallengeOperationsDto = z.infer<typeof challengeOperationsSchema>;
+export type ChallengeRemediationOverviewDto = z.infer<typeof challengeRemediationOverviewSchema>;
 export type ChallengeReplayResultDto = z.infer<typeof challengeReplayResultSchema>;
 export type ChallengeLiveReplayDto = z.infer<typeof challengeLiveReplaySchema>;
 export type ChallengeLiveReplayRunsDto = z.infer<typeof challengeLiveReplayRunsSchema>;

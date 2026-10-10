@@ -44,6 +44,7 @@ export function OperationsPage() {
           ) : (
             <OperationsCommandCenter
               alerts={overview.data.alerts}
+              remediations={overview.data.remediations}
               runId={selectCurrentRunId(overview.data.alerts)}
             />
           )}

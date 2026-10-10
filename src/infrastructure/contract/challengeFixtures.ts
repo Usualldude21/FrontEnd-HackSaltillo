@@ -3,6 +3,7 @@ import type {
   ChallengeContractDto,
   ChallengeExplanationDto,
   ChallengeOperationsDto,
+  ChallengeRemediationOverviewDto,
   ChallengeShowcaseDto,
 } from "../api/challengeBackendSchemas";
 
@@ -104,6 +105,7 @@ export const challengeAlertFixtures: ChallengeAlertDtoV1[] = [
     response_plan: responsePlan,
     runbook_id: responsePlan.runbook_id,
     action_executed: false,
+    remediation: null,
     delivered_at: "2026-10-09T21:10:00.000Z",
     priority: "warning",
     state: "open",
@@ -147,6 +149,7 @@ export const challengeAlertFixtures: ChallengeAlertDtoV1[] = [
     },
     runbook_id: "kaiku.telemetry.restore.v1",
     action_executed: false,
+    remediation: null,
     delivered_at: "2026-10-09T21:10:01.000Z",
     priority: "critical",
     state: "open",
@@ -164,6 +167,7 @@ export const challengeOperationsFixture: ChallengeOperationsDto = {
   version: "challenge-kaiku-operations-v2",
   environment: "official_synthetic_challenge_replay",
   alerts: { total: 2, incident_risk: 1, data_quality: 1, open: 2, acknowledged: 0 },
+  remediations: { total: 0, recovered: 0, reverted: 0, escalated: 0, active: 0 },
   timing: {
     signal_to_detection_seconds: { clock_domain: "synthetic_replay_time", count: 2, min: 120, median: 1_620, max: 3_120 },
     delivery_to_acknowledgement_seconds: { clock_domain: "operator_wall_clock", count: 0, min: null, median: null, max: null },
@@ -186,7 +190,19 @@ export const challengeOperationsFixture: ChallengeOperationsDto = {
     mitigation_executed: false,
     recovery_verified: false,
     remote_infrastructure_observed: false,
+    controlled_infrastructure_only: true,
   },
+};
+
+export const challengeRemediationOverviewFixture: ChallengeRemediationOverviewDto = {
+  version: "challenge-controlled-remediation-v1",
+  environment: "controlled_infrastructure_demo",
+  enabled: true,
+  wait_seconds: 300,
+  verification_minutes: 10,
+  gemini_configured: false,
+  mcp_execution_available: true,
+  records: [],
 };
 
 export const challengeShowcaseFixture: ChallengeShowcaseDto = {
