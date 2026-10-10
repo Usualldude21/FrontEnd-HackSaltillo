@@ -1,0 +1,25 @@
+import type { AlertQuery, ChallengeAlertQuery, TelemetryQuery } from "../../domain/ports";
+
+export const queryKeys = {
+  challengeContract: ["challenge-contract", "kaiku"] as const,
+  challengeHeaderOperations: ["challenge-header-operations", "kaiku"] as const,
+  challengeOverview: ["challenge-overview", "kaiku"] as const,
+  challengeAlerts: (query: ChallengeAlertQuery = {}) => ["challenge-alerts", "kaiku", query] as const,
+  challengeExplanation: (eventId: number) => ["challenge-explanation", "kaiku", eventId] as const,
+  challengeInvestigation: (incidentId: string) => ["challenge-investigation", "kaiku", incidentId] as const,
+  challengeIncidentCases: ["challenge-incident-cases", "kaiku"] as const,
+  challengeIncidentCase: (eventId: number) => ["challenge-incident-case", "kaiku", eventId] as const,
+  challengeReplaySetup: ["challenge-replay-setup", "kaiku"] as const,
+  backendStatus: ["backend-status"] as const,
+  capabilities: ["capabilities"] as const,
+  tenants: ["tenants"] as const,
+  runs: ["runs"] as const,
+  operationSnapshot: (runId: string) => ["operation-snapshot", runId] as const,
+  telemetry: (query: TelemetryQuery) => ["telemetry", query] as const,
+  alerts: (query: AlertQuery = {}) => ["alerts", query] as const,
+  incidents: ["incidents"] as const,
+  incident: (id: string) => ["incident", id] as const,
+  incidentEvents: (id: string) => ["incident-events", id] as const,
+  incidentDetail: (id: string) => ["incident-detail", id] as const,
+  replay: (id: string) => ["replay", id] as const,
+};

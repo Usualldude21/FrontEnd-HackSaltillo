@@ -1,0 +1,26 @@
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+.env
+.env.*
+!.env.example
+package-lock.json
+npm-debug.log*
+*.local
+
+# Runtime-only publication: keep local QA and handoff material out of Git.
+**/*.test.ts
+**/*.test.tsx
+src/test/
+playwright.config.ts
+vitest.config.ts
+eslint.config.js
+README.md
+frontend-mvp-handoff.md
+.github/
+docs/
+e2e/
+scripts/*
+!scripts/start-jury-demo.mjs

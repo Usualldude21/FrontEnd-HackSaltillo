@@ -1,0 +1,65 @@
+{
+  "name": "zikit-sentinel-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@10.34.5",
+  "engines": {
+    "node": ">=20.19.0",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "dev:contract": "VITE_DATA_SOURCE=contract vite --mode contract",
+    "dev:api": "VITE_DATA_SOURCE=api vite --mode api",
+    "demo:jury": "node scripts/start-jury-demo.mjs",
+    "build": "tsc -b && vite build",
+    "build:api": "tsc -b && VITE_DATA_SOURCE=api vite build --mode api",
+    "typecheck": "tsc -b --pretty false",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:backend": "LIVE_BACKEND_URL=${LIVE_BACKEND_URL:-http://127.0.0.1:8000} vitest run src/infrastructure/api/liveBackend.contract.test.ts",
+    "verify:release": "node scripts/verify-release.mjs",
+    "gen:api": "openapi-typescript $OPENAPI_URL -o src/infrastructure/api/generated/openapi.d.ts",
+    "check:package-manager": "node scripts/check-no-package-lock.mjs"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "5.90.5",
+    "eventsource-parser": "3.0.6",
+    "gsap": "3.13.0",
+    "lucide-react": "0.545.0",
+    "msw": "2.11.5",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "react-router-dom": "7.9.4",
+    "recharts": "3.3.0",
+    "zod": "4.1.12"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.38.0",
+    "@playwright/test": "1.56.1",
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.0",
+    "@types/node": "24.9.1",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "@vitejs/plugin-react": "5.0.4",
+    "eslint": "9.38.0",
+    "eslint-plugin-react-hooks": "7.0.1",
+    "eslint-plugin-react-refresh": "0.4.24",
+    "globals": "16.4.0",
+    "jsdom": "27.0.1",
+    "openapi-typescript": "7.10.1",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.46.2",
+    "vite": "7.1.12",
+    "vitest": "3.2.4"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
+  }
+}
