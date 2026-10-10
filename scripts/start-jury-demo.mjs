@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { access } from "node:fs/promises";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,6 +20,28 @@ await access(backendPython).catch(() => {
 
 const children = [];
 let stopping = false;
+
+async function assertPortAvailable(port, label) {
+  await new Promise((resolvePort, rejectPort) => {
+    const server = createServer();
+    server.unref();
+    server.once("error", (error) => {
+      rejectPort(
+        new Error(
+          `${label} no puede iniciar: el puerto ${port} ya está ocupado. ` +
+            "Cierra los procesos residuales y vuelve a ejecutar la demo.",
+          { cause: error },
+        ),
+      );
+    });
+    server.listen({ host: "127.0.0.1", port }, () => {
+      server.close((error) => {
+        if (error) rejectPort(error);
+        else resolvePort();
+      });
+    });
+  });
+}
 
 function start(command, args, options) {
   const child = spawn(command, args, { ...options, stdio: "inherit" });
@@ -47,6 +70,14 @@ function stop(exitCode = 0) {
 
 process.once("SIGINT", () => stop(0));
 process.once("SIGTERM", () => stop(0));
+
+try {
+  await assertPortAvailable(8000, "El backend");
+  await assertPortAvailable(5173, "El frontend");
+} catch (error) {
+  console.error(`\n${error instanceof Error ? error.message : String(error)}\n`);
+  process.exit(1);
+}
 
 start(backendPython, [
   "-m",
@@ -81,7 +112,7 @@ if (Date.now() >= deadline) {
   console.error("El backend no quedó disponible en 20 segundos.");
   stop(1);
 } else {
-  start("pnpm", ["dev:api", "--host", "127.0.0.1", "--port", "5173"], {
+  start("pnpm", ["dev:api", "--host", "127.0.0.1", "--port", "5173", "--strictPort"], {
     cwd: frontendDirectory,
     env: {
       ...process.env,
@@ -90,7 +121,22 @@ if (Date.now() >= deadline) {
     },
   });
 
-  console.log("\nSentinel listo para la demostración del jurado.");
-  console.log(`Abrir: ${frontendUrl}`);
-  console.log("La base inicia vacía y las acciones no solicitan tokens en la interfaz.\n");
+  const frontendDeadline = Date.now() + 20_000;
+  while (Date.now() < frontendDeadline) {
+    try {
+      const response = await fetch(frontendUrl);
+      if (response.ok) break;
+    } catch {
+      await new Promise((resolveWait) => setTimeout(resolveWait, 250));
+    }
+  }
+
+  if (Date.now() >= frontendDeadline) {
+    console.error("El frontend no quedó disponible en 20 segundos.");
+    stop(1);
+  } else {
+    console.log("\nSentinel listo para la demostración del jurado.");
+    console.log(`Abrir: ${frontendUrl}`);
+    console.log("La base inicia vacía y las acciones no solicitan tokens en la interfaz.\n");
+  }
 }
